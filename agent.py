@@ -216,7 +216,7 @@ class Config:
         # ---------------------------------------------------------
 
         # BONK (ERC-20 version, NOT Solana)
-        "BONK": TokenConfig("DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263", "sol", False, 5),
+        "BONK": TokenConfig("0x1151cb3d861920e07a38e03eead12c32178567f6", "eth", False, 5),
 
         # WIF (Dogwifhat ERC-20 – correct contract)
         "WIF": TokenConfig("EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm", "sol", False, 18),
