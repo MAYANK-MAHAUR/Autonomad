@@ -83,8 +83,6 @@ class Config:
         "LINK": {"address": "0x514910771AF9Ca656af840dff83E8264EcF986CA", "chain": "eth", "stable": False},
         "AAVE": {"address": "0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9", "chain": "eth", "stable": False},
         "SNX": {"address": "0xC011a73ee8576Fb46F5E1c5751cA3B9Fe0af2a6F", "chain": "eth", "stable": False},
-        "CRV": {"address": "0xD533a949740bb3306d119CC777fa900bA034cd52", "chain": "eth", "stable": False},
-        "PEPE": {"address": "0x6982508145454Ce325dDbE47a25d4ec3d2311933", "chain": "eth", "stable": False},
         # === Solana & BSC Tokens (Assumed Addresses/Chains for competition) ===
         "BONK": {"address": "0x5e5bA2C08bC25220c02A7E8eF232CB2c6B109590", "chain": "sol", "stable": False},
         "WIF": {"address": "0x40D1B9fB7e2C64188b0F4f7626960F1F686C10a6", "chain": "sol", "stable": False},
@@ -308,8 +306,6 @@ class MarketAnalyzer:
         "USDC": "usd-coin",
         "AAVE": "aave",
         "SNX": "synthetix-network-token",
-        "CRV": "curve-dao-token",
-        "PEPE": "pepe",
         "BONK": "bonk",
         "WIF": "dogwifhat",
         "FLOKI": "floki",

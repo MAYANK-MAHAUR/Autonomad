@@ -1,0 +1,24 @@
+{
+    "tracked_positions": {
+        "AAVE": {
+            "symbol": "AAVE",
+            "entry_price": 187.85,
+            "entry_amount": 1.5970188980569604,
+            "entry_value_usd": 300.0,
+            "entry_timestamp": "2025-11-28T08:58:24.705093+00:00"
+        }
+    },
+    "position_history": [],
+    "trade_history": [
+        {
+            "timestamp": "2025-11-28T08:58:24.705093+00:00",
+            "action": "BUY",
+            "from": "USDC",
+            "to": "AAVE",
+            "amount": 300.0,
+            "reason": "New Entry (MOMENTUM): +251.94% change, Score: 0.3, Conviction: MEDIUM"
+        }
+    ],
+    "trades_today": 1,
+    "last_trade_date": "2025-11-28"
+}
