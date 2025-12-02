@@ -246,7 +246,7 @@ class Config:
         
         # DeFi Tokens
         "UNI": TokenConfig("0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984", "eth", False, 18),
-        "LINK": TokenConfig("0x514910771AF9Ca656af840dff83E8264EcF986CA", "eth", False, 18),  # CORRECTED
+        "LINK": TokenConfig("0x514910771af9ca656af840dff83e8264ecf986ca", "eth", False, 18),  # CORRECTED
         "AAVE": TokenConfig("0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9", "eth", False, 18),
         "SNX": TokenConfig("0xC011a73ee8576Fb46F5E1c5751cA3B9Fe0af2a6F", "eth", False, 18),
         
