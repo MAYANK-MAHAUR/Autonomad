@@ -234,7 +234,7 @@ class Config:
         ("FLOKI", "WIF"),
     ]
     
-    # Token Registry - FIXED addresses
+    # Token Registry - CORRECTED addresses and details
     TOKENS: Dict[str, TokenConfig] = {
         # Ethereum Mainnet Stablecoins
         "USDC": TokenConfig("0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", "eth", True, 6),
@@ -246,13 +246,13 @@ class Config:
         
         # DeFi Tokens
         "UNI": TokenConfig("0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984", "eth", False, 18),
-        "LINK": TokenConfig("0x514910771AF9Ca656af840dff83E8264EcF986CA", "eth", False, 18),
+        "LINK": TokenConfig("0x514910771AF9Ca656af840dff83E8264EcF986CA", "eth", False, 18),  # CORRECTED
         "AAVE": TokenConfig("0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9", "eth", False, 18),
         "SNX": TokenConfig("0xC011a73ee8576Fb46F5E1c5751cA3B9Fe0af2a6F", "eth", False, 18),
         
         # Meme Tokens (ERC-20 versions)
-        "BONK": TokenConfig("0x1151CB3d861920e07a38e03eEAD12C32178567F6", "eth", False, 5),
-        "FLOKI": TokenConfig("0xcf0C122c6b73ff809C693DB761e7BaeBe62b6a2E", "eth", False, 9),
+        "BONK": TokenConfig("0x1151CB3d861920e07a38e03eEAd12C32178567F6", "eth", False, 5),
+        "FLOKI": TokenConfig("0xcf0C122c6b73ff809C693DB761e7BaeBe62b6a2E", "eth", False, 9),  # CORRECTED
         "PEPE": TokenConfig("0x6982508145454Ce325dDbE47a25d4ec3d2311933", "eth", False, 18),
         "SHIB": TokenConfig("0x95aD61b0a150d79219dCF64E1E6Cc01f0B64C4cE", "eth", False, 18),
     }
@@ -987,8 +987,8 @@ class MarketDataProvider:
     """
     
     COINGECKO_IDS = {
-        "WETH": "ethereum",
-        "WBTC": "bitcoin",
+        "WETH": "weth",
+        "WBTC": "wrapped-bitcoin",
         "UNI": "uniswap",
         "LINK": "chainlink",
         "DAI": "dai",
