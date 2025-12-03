@@ -146,7 +146,7 @@ class Config:
     # API Configuration
     RECALL_API_KEY: str = os.getenv("RECALL_API_KEY", "")
     USE_SANDBOX: bool = os.getenv("RECALL_USE_SANDBOX", "true").lower() == "true"
-    COMPETITION_ID: str = os.getenv("COMPETITION_ID", "")
+    COMPETITION_ID: str = os.getenv("COMPETITION_ID", "0a5c57ad-0d11-4217-88a1-170445d72b52")
     SANDBOX_URL: str = "https://api.sandbox.competitions.recall.network"
     PRODUCTION_URL: str = "https://api.competitions.recall.network"
     

@@ -161,3 +161,35 @@
 2025-12-03 17:59:52,464 [[32mINFO[0m] TradingAgent:    Max Drawdown: 0.00%
 2025-12-03 17:59:52,464 [[32mINFO[0m] TradingAgent: ================================================================================
 2025-12-03 17:59:52,464 [[32mINFO[0m] TradingAgent: ✅ Shutdown complete
+2025-12-03 18:22:08,962 [[32mINFO[0m] TradingAgent: ✅ Recall API Client initialized (PRODUCTION)
+2025-12-03 18:22:08,962 [[32mINFO[0m] TradingAgent: 🤖 Trading Agent v3.0 initialized
+2025-12-03 18:22:08,963 [[32mINFO[0m] TradingAgent: ================================================================================
+2025-12-03 18:22:08,963 [[32mINFO[0m] TradingAgent: 🚀 ADVANCED PAPER TRADING AGENT v3.0 - PRODUCTION READY 🚀
+2025-12-03 18:22:08,963 [[32mINFO[0m] TradingAgent: ================================================================================
+2025-12-03 18:22:08,963 [[32mINFO[0m] TradingAgent:    Environment: PRODUCTION
+2025-12-03 18:22:08,963 [[32mINFO[0m] TradingAgent:    Strategy Mode: BALANCED
+2025-12-03 18:22:08,964 [[32mINFO[0m] TradingAgent:    Adaptive Mode: ENABLED
+2025-12-03 18:22:08,964 [[32mINFO[0m] TradingAgent:    Trading Interval: 300s
+2025-12-03 18:22:08,964 [[32mINFO[0m] TradingAgent:    Max Positions: 8
+2025-12-03 18:22:08,964 [[32mINFO[0m] TradingAgent:    Base Position Size: $300.0
+2025-12-03 18:22:08,965 [[32mINFO[0m] TradingAgent:    Max Consecutive Errors: 5
+2025-12-03 18:22:08,965 [[32mINFO[0m] TradingAgent: ================================================================================
+2025-12-03 18:22:08,966 [[32mINFO[0m] TradingAgent: 💾 No state file found. Starting fresh.
+2025-12-03 18:22:08,966 [[32mINFO[0m] TradingAgent: ✅ Using configured competition: 0a5c57ad-0d11-4217-88a1-170445d72b52
+2025-12-03 18:22:08,966 [[32mINFO[0m] TradingAgent: ✅ Agent initialized with 0 tracked positions
+2025-12-03 18:22:08,968 [[32mINFO[0m] TradingAgent: 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+2025-12-03 18:22:08,970 [[32mINFO[0m] TradingAgent: 🔄 TRADING CYCLE: 2025-12-03 12:52:08 UTC
+2025-12-03 18:22:08,971 [[32mINFO[0m] TradingAgent: ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+2025-12-03 18:22:12,489 [[32mINFO[0m] TradingAgent: 🛑 Initiating graceful shutdown...
+2025-12-03 18:22:12,507 [[32mINFO[0m] TradingAgent: 💾 Final state saved
+2025-12-03 18:22:12,510 [[32mINFO[0m] TradingAgent: 🔌 Connections closed
+2025-12-03 18:22:12,511 [[32mINFO[0m] TradingAgent: ================================================================================
+2025-12-03 18:22:12,511 [[32mINFO[0m] TradingAgent: 📊 FINAL SESSION STATISTICS
+2025-12-03 18:22:12,512 [[32mINFO[0m] TradingAgent: ================================================================================
+2025-12-03 18:22:12,512 [[32mINFO[0m] TradingAgent:    Total Trades: 0
+2025-12-03 18:22:12,514 [[32mINFO[0m] TradingAgent:    Win Rate: 0.0%
+2025-12-03 18:22:12,514 [[32mINFO[0m] TradingAgent:    Total P&L: $+0.00
+2025-12-03 18:22:12,515 [[32mINFO[0m] TradingAgent:    Max Drawdown: 0.00%
+2025-12-03 18:22:12,515 [[32mINFO[0m] TradingAgent: ================================================================================
+2025-12-03 18:22:12,515 [[32mINFO[0m] TradingAgent: ✅ Shutdown complete

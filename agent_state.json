@@ -1,0 +1,24 @@
+{
+  "tracked_positions": {},
+  "metrics": {
+    "total_trades": 0,
+    "winning_trades": 0,
+    "losing_trades": 0,
+    "total_pnl_usd": 0.0,
+    "max_drawdown_pct": 0.0,
+    "sharpe_ratio": 0.0,
+    "trades_today": 0,
+    "daily_pnl_usd": 0.0,
+    "peak_portfolio_value": 0.0,
+    "consecutive_losses": 0,
+    "consecutive_wins": 0
+  },
+  "price_history": {},
+  "position_history": [],
+  "trade_history": [],
+  "trades_today": 0,
+  "daily_start_value": 0,
+  "last_trade_date": null,
+  "checksum": "c31be790b5cdd74c",
+  "saved_at": "2025-12-03T12:52:12.489888+00:00"
+}
