@@ -2122,10 +2122,6 @@ class TradingAgent:
                 "change_24h": data.get("change_24h_pct", 0),
                 "volume_surge": data.get("volume_surge_score", 0)
             })
-            
-            # Keep only last 288 entries (24 hours at 5-minute intervals)
-            if len(self.price_history[symbol]) > 288:
-                self.price_history[symbol] = self.price_history[symbol][-288:]
     
     async def execute_trade(self, decision: TradeDecision, portfolio: Dict) -> bool:
         """Execute trade with MULTI-CHAIN support and SLIPPAGE PROTECTION"""
