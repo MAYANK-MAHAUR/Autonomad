@@ -266,6 +266,7 @@ class Config:
         
         # Base (Coinbase's L2)
         "WETH_BASE": TokenConfig("0x4200000000000000000000000000000000000006", "base", False, 18),
+        "RECALL": TokenConfig("0x1f16e03C1a5908818F47f6EE7bB16690b40D0671", "base", False, 18),
         
         # Solana (native tokens)
         "SOL": TokenConfig("So11111111111111111111111111111111111111112", "svm", False, 9),
@@ -279,7 +280,8 @@ class Config:
         "WBTC": ["WBTC", "WBTC_POLYGON", "WBTC_ARBITRUM"],
         "LINK": ["LINK", "LINK_POLYGON", "LINK_ARBITRUM"],
         "BONK": ["BONK", "BONK_SOLANA"],
-        "GAIA": ["GAIA"]
+        "GAIA": ["GAIA"],
+        "RECALL": ["RECALL"]
     }
 
     
@@ -1053,6 +1055,7 @@ class MarketDataProvider:
         "SOL":         "So11111111111111111111111111111111111111112", # Raydium SOL
         "BONK_SOLANA": "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263", # BONK/SOL
         "GAIA" : "0x2EE7097BfdD98fCE2AC08A1896038a7cd9aaEd81", # GAIA/USDT
+        "RECALL": "0x1f16e03C1a5908818F47f6EE7bB16690b40D0671"  # RECALL/USDT
     }
 
     BASE_URL = "https://api.dexscreener.com/latest/dex"
