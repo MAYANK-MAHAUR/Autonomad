@@ -246,7 +246,6 @@ class Config:
         "SNX": TokenConfig("0xC011a73ee8576Fb46F5E1c5751cA3B9Fe0af2a6F", "eth", False, 18),
         "CRV": TokenConfig("0xD533a949740bb3306d119CC777fa900bA034cd52", "eth", False, 18),
         "MKR": TokenConfig("0x9f8F72aA9304c8B593d555F12eF6589cC3A579A2", "eth", False, 18),
-        "GAIA": TokenConfig("0xd715cc968c288740028be20685263f43ed1e4837", "bsc", False, 18),
         
         # Meme Tokens (Ethereum)
         "BONK": TokenConfig("0x1151CB3d861920e07a38e03eead12c32178567F6", "eth", False, 5),
@@ -280,7 +279,6 @@ class Config:
         "WBTC": ["WBTC", "WBTC_POLYGON", "WBTC_ARBITRUM"],
         "LINK": ["LINK", "LINK_POLYGON", "LINK_ARBITRUM"],
         "BONK": ["BONK", "BONK_SOLANA"],
-        "GAIA": ["GAIA"],
         "RECALL": ["RECALL"]
     }
 
@@ -1054,7 +1052,6 @@ class MarketDataProvider:
         "WETH_BASE":   "0x4200000000000000000000000000000000000006", # Base WETH
         "SOL":         "So11111111111111111111111111111111111111112", # Raydium SOL
         "BONK_SOLANA": "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263", # BONK/SOL
-        "GAIA" : "0xd715cc968c288740028be20685263f43ed1e4837", # GAIA/USDT
         "RECALL": "0x1f16e03C1a5908818F47f6EE7bB16690b40D0671"  # RECALL/USDT
     }
 
