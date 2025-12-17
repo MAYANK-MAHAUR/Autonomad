@@ -1,5 +1,5 @@
 """
-LLM Trading Brain - FIXED JSON parsing
+LLM Trading Brain - Enhanced with retry logic and better error handling
 """
 import asyncio
 import json
@@ -20,6 +20,7 @@ logger = get_logger("LLMBrain")
 class LLMBrain:
     """
     Elite LLM Brain for trading decisions
+    Enhanced with retry logic and circuit breaking
     """
     
     def __init__(self):
@@ -30,6 +31,12 @@ class LLMBrain:
         
         self._session: Optional[aiohttp.ClientSession] = None
         self._cache: Dict[str, any] = {}
+        
+        # Circuit breaker for LLM failures
+        self._failure_count = 0
+        self._max_failures = 3
+        self._circuit_open = False
+        self._last_failure_time: Optional[datetime] = None
         
         if self.enabled:
             if not self.api_key or not self.base_url:
@@ -53,8 +60,43 @@ class LLMBrain:
         if self._session and not self._session.closed:
             await self._session.close()
     
+    def _check_circuit_breaker(self) -> bool:
+        """Check if circuit breaker should allow request"""
+        if not self._circuit_open:
+            return True
+        
+        # Check if we should try to reset
+        if self._last_failure_time:
+            elapsed = (datetime.now() - self._last_failure_time).total_seconds()
+            if elapsed > 300:  # 5 minutes
+                logger.info("🔄 LLM circuit breaker attempting reset")
+                self._circuit_open = False
+                self._failure_count = 0
+                return True
+        
+        return False
+    
+    def _on_llm_failure(self):
+        """Record LLM failure"""
+        self._failure_count += 1
+        self._last_failure_time = datetime.now()
+        
+        if self._failure_count >= self._max_failures:
+            self._circuit_open = True
+            logger.warning(
+                f"⚠️ LLM circuit breaker OPEN after {self._failure_count} failures. "
+                "Falling back to algorithmic mode."
+            )
+    
+    def _on_llm_success(self):
+        """Record LLM success"""
+        self._failure_count = 0
+        if self._circuit_open:
+            logger.info("✅ LLM circuit breaker CLOSED - service recovered")
+            self._circuit_open = False
+    
     def _extract_json(self, text: str) -> str:
-        """Extract JSON from LLM response - IMPROVED"""
+        """Extract JSON from LLM response"""
         if not text:
             return ""
         
@@ -97,47 +139,71 @@ class LLMBrain:
         
         return text.strip()
     
-    async def _call_llm(self, prompt: str, system: str = None) -> str:
-        """Call LLM API"""
-        if not self.enabled:
+    async def _call_llm(self, prompt: str, system: str = None, retry_count: int = 2) -> str:
+        """Call LLM API with retry logic"""
+        if not self.enabled or not self._check_circuit_breaker():
             return ""
         
-        try:
-            session = await self._get_session()
-            
-            messages = []
-            if system:
-                messages.append({"role": "system", "content": system})
-            messages.append({"role": "user", "content": prompt})
-            
-            payload = {
-                "model": self.model,
-                "messages": messages,
-                "temperature": config.LLM_TEMPERATURE,
-                "max_tokens": config.LLM_MAX_TOKENS
-            }
-            
-            headers = {
-                "Authorization": f"Bearer {self.api_key}",
-                "Content-Type": "application/json"
-            }
-            
-            async with session.post(
-                f"{self.base_url}/chat/completions",
-                json=payload,
-                headers=headers
-            ) as resp:
-                if resp.status != 200:
-                    error = await resp.text()
-                    logger.error(f"❌ LLM API error ({resp.status}): {error[:200]}")
+        for attempt in range(retry_count):
+            try:
+                session = await self._get_session()
+                
+                messages = []
+                if system:
+                    messages.append({"role": "system", "content": system})
+                messages.append({"role": "user", "content": prompt})
+                
+                payload = {
+                    "model": self.model,
+                    "messages": messages,
+                    "temperature": config.LLM_TEMPERATURE,
+                    "max_tokens": config.LLM_MAX_TOKENS
+                }
+                
+                headers = {
+                    "Authorization": f"Bearer {self.api_key}",
+                    "Content-Type": "application/json"
+                }
+                
+                async with session.post(
+                    f"{self.base_url}/chat/completions",
+                    json=payload,
+                    headers=headers
+                ) as resp:
+                    if resp.status != 200:
+                        error = await resp.text()
+                        logger.error(f"❌ LLM API error ({resp.status}): {error[:200]}")
+                        
+                        if attempt < retry_count - 1:
+                            await asyncio.sleep(2 ** attempt)  # Exponential backoff
+                            continue
+                        
+                        self._on_llm_failure()
+                        return ""
+                    
+                    data = await resp.json()
+                    result = data["choices"][0]["message"]["content"].strip()
+                    
+                    self._on_llm_success()
+                    return result
+                    
+            except asyncio.TimeoutError:
+                logger.warning(f"⏰ LLM timeout (attempt {attempt + 1}/{retry_count})")
+                if attempt < retry_count - 1:
+                    await asyncio.sleep(2 ** attempt)
+                else:
+                    self._on_llm_failure()
                     return ""
-                
-                data = await resp.json()
-                return data["choices"][0]["message"]["content"].strip()
-                
-        except Exception as e:
-            logger.error(f"❌ LLM call failed: {e}")
-            return ""
+                    
+            except Exception as e:
+                logger.error(f"❌ LLM call failed (attempt {attempt + 1}/{retry_count}): {e}")
+                if attempt < retry_count - 1:
+                    await asyncio.sleep(2 ** attempt)
+                else:
+                    self._on_llm_failure()
+                    return ""
+        
+        return ""
     
     async def rank_tokens(
         self, 
@@ -147,7 +213,7 @@ class LLMBrain:
         """
         🧠 BRAIN FUNCTION: Rank discovered tokens by trading potential
         """
-        if not self.enabled or not tokens:
+        if not self.enabled or not tokens or self._circuit_open:
             return [(t, t.opportunity_score, "Algorithmic scoring") for t in tokens]
         
         logger.info(f"🧠 LLM ranking {len(tokens)} tokens...")
@@ -254,7 +320,7 @@ CRITICAL: Respond ONLY with valid JSON. No other text. Format:
         """
         🧠 BRAIN FUNCTION: Confirm if this trade makes sense
         """
-        if not self.enabled:
+        if not self.enabled or self._circuit_open:
             return (True, "Algorithmic decision", conviction)
         
         logger.info(f"🧠 LLM confirming trade: {token.symbol} ({signal_type})")
@@ -322,5 +388,7 @@ CRITICAL: Respond ONLY with valid JSON:
         return {
             "enabled": self.enabled,
             "model": self.model,
+            "circuit_open": self._circuit_open,
+            "failure_count": self._failure_count,
             "cache_size": len(self._cache)
         }
