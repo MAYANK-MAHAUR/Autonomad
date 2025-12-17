@@ -104,31 +104,59 @@ class TradingAgent:
         logger.info(f"   Win Rate: {self.metrics.win_rate*100:.1f}%")
     
     async def _select_competition(self) -> str:
-        """Select competition to participate in - FIXED: No recursion"""
+        """Select competition to participate in - FIXED: Proper error handling"""
+        # Use configured competition if provided
         if config.COMPETITION_ID:
             logger.info(f"✅ Using configured competition: {config.COMPETITION_ID}")
             return config.COMPETITION_ID
         
         try:
+            # Try to get user's competitions first
+            logger.info("🔍 Fetching user competitions...")
             user_comps = await self.client.get_user_competitions()
             competitions = user_comps.get("competitions", [])
             
+            # If no user competitions, get all public competitions
             if not competitions:
+                logger.info("🔍 No user competitions, fetching public competitions...")
                 all_comps = await self.client.get_competitions()
                 competitions = all_comps.get("competitions", [])
             
+            # If still no competitions found, raise error
             if not competitions:
-                raise ValueError("No competitions found")
+                raise ValueError(
+                    "No competitions found. Please either:\n"
+                    "  1. Set COMPETITION_ID in your .env file, or\n"
+                    "  2. Ensure your API key has access to competitions"
+                )
             
-            active = [c for c in competitions if c.get("status") == "active"]
-            comp = active[0] if active else competitions[0]
+            # Filter for active competitions
+            active_comps = [c for c in competitions if c.get("status") == "active"]
             
-            comp_id = comp.get("id")
-            logger.info(f"✅ Selected competition: {comp.get('name', comp_id)}")
+            # Use first active competition, or first competition if none active
+            selected_comp = active_comps[0] if active_comps else competitions[0]
+            comp_id = selected_comp.get("id")
+            comp_name = selected_comp.get("name", comp_id)
+            comp_status = selected_comp.get("status", "unknown")
+            
+            logger.info(f"✅ Auto-selected competition:")
+            logger.info(f"   Name: {comp_name}")
+            logger.info(f"   ID: {comp_id}")
+            logger.info(f"   Status: {comp_status}")
+            
+            if comp_status != "active":
+                logger.warning(f"⚠️ Competition status is '{comp_status}' (not 'active')")
+            
             return comp_id
             
         except Exception as e:
-            raise ValueError(f"Failed to select competition: {e}")
+            error_msg = (
+                f"Failed to select competition: {e}\n\n"
+                f"Please set COMPETITION_ID in your .env file:\n"
+                f'  COMPETITION_ID="your-competition-id-here"'
+            )
+            logger.error(f"❌ {error_msg}")
+            raise ValueError(error_msg)
     
     async def _check_daily_reset(self):
         """Reset daily counters if new day"""
