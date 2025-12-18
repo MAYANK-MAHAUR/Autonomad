@@ -214,11 +214,8 @@ class PortfolioManager:
         
         logger.info(f"✅ Token validation passed")
         
-        # Pre-trade validation
-        validation_result = self._validate_trade(decision, portfolio)
-        if not validation_result["valid"]:
-            logger.warning(f"⚠️ Trade validation failed: {validation_result['reason']}")
-            return False
+        # ✅ REMOVED: Pre-trade validation moved to strategy layer for fallback support
+        # The strategy now handles validation BEFORE creating decisions
         
         # Get stablecoin for trade
         from_symbol = decision.from_token
@@ -272,6 +269,12 @@ class PortfolioManager:
         
         if trade_amount < config.MIN_TRADE_SIZE:
             logger.warning(f"❌ Trade too small: {trade_amount:.6f} < {config.MIN_TRADE_SIZE}")
+            return False
+        
+        # ✅ NEW: Final sanity check (this should never fail if strategy validation worked)
+        final_validation = self._validate_trade_final(decision, portfolio)
+        if not final_validation["valid"]:
+            logger.error(f"❌ Final validation failed: {final_validation['reason']}")
             return False
         
         decimals = from_config.decimals
@@ -361,8 +364,11 @@ class PortfolioManager:
             
             return False
     
-    def _validate_trade(self, decision: TradeDecision, portfolio: Dict) -> Dict:
-        """Comprehensive pre-trade validation"""
+    def _validate_trade_final(self, decision: TradeDecision, portfolio: Dict) -> Dict:
+        """
+        ✅ RENAMED: Final validation before API call (after strategy has chosen this token)
+        This is the last check before hitting the API
+        """
         if decision.amount_usd < config.MIN_TRADE_SIZE:
             return {
                 "valid": False,

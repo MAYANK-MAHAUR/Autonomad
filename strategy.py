@@ -146,6 +146,8 @@ class TradingStrategy:
             
             # ✅ CRITICAL: Pre-validate token BEFORE creating decision
             logger.info(f"🔍 Pre-validating token #{validated_count + 1}: {token.symbol}")
+            
+            # Validate address format
             is_valid, reason = token_validator.validate_token(
                 address=token.address,
                 chain=token.chain,
@@ -157,13 +159,9 @@ class TradingStrategy:
             validated_count += 1
             
             if not is_valid:
-                logger.warning(f"❌ Validation failed: {token.symbol} - {reason}")
+                logger.warning(f"❌ Address validation failed: {token.symbol} - {reason}")
                 failed_tokens.append(f"{token.symbol} ({reason})")
-                
-                # Record failure
                 token_validator.record_trade_failure(token.address, token.chain)
-                
-                # Continue to next token (FALLBACK)
                 continue
             
             # Check if blacklisted
@@ -172,7 +170,19 @@ class TradingStrategy:
                 failed_tokens.append(f"{token.symbol} (blacklisted)")
                 continue
             
-            logger.info(f"✅ Token validation passed: {token.symbol}")
+            # ✅ NEW: Pre-validate trading requirements (liquidity, volume, etc)
+            trade_validation = self._pre_validate_token_requirements(
+                token, 
+                portfolio, 
+                positions
+            )
+            
+            if not trade_validation["valid"]:
+                logger.warning(f"❌ Trading validation failed: {token.symbol} - {trade_validation['reason']}")
+                failed_tokens.append(f"{token.symbol} ({trade_validation['reason']})")
+                continue
+            
+            logger.info(f"✅ All validations passed: {token.symbol}")
             
             # Determine signal type and conviction
             signal_type, conviction = self._classify_opportunity(token)
@@ -312,6 +322,78 @@ class TradingStrategy:
             )
         
         return None
+    
+    def _pre_validate_token_requirements(
+        self,
+        token: DiscoveredToken,
+        portfolio: Dict,
+        positions: List[Position]
+    ) -> Dict:
+        """
+        ✅ NEW: Pre-validate token trading requirements
+        This catches issues BEFORE creating the trade decision
+        """
+        # Check liquidity
+        if token.liquidity_usd < config.MIN_LIQUIDITY_USD:
+            return {
+                "valid": False,
+                "reason": f"low_liquidity (${token.liquidity_usd:,.0f} < ${config.MIN_LIQUIDITY_USD:,.0f})"
+            }
+        
+        # Check volume
+        if token.volume_24h < config.MIN_VOLUME_24H_USD:
+            return {
+                "valid": False,
+                "reason": f"low_volume (${token.volume_24h:,.0f} < ${config.MIN_VOLUME_24H_USD:,.0f})"
+            }
+        
+        # Check score threshold
+        if token.opportunity_score < config.OPPORTUNITY_SCORE_THRESHOLD:
+            return {
+                "valid": False,
+                "reason": f"low_score ({token.opportunity_score:.1f} < {config.OPPORTUNITY_SCORE_THRESHOLD})"
+            }
+        
+        # Check if would exceed max positions
+        if len(positions) >= config.MAX_POSITIONS:
+            return {
+                "valid": False,
+                "reason": f"max_positions ({len(positions)}/{config.MAX_POSITIONS})"
+            }
+        
+        # Check available USDC
+        holdings = portfolio.get("holdings", {})
+        total_usdc = sum(
+            h["value"] for s, h in holdings.items()
+            if self._is_stablecoin(s)
+        )
+        
+        if total_usdc < config.MIN_TRADE_SIZE:
+            return {
+                "valid": False,
+                "reason": f"insufficient_usdc (${total_usdc:.2f})"
+            }
+        
+        # Check portfolio risk
+        total_value = portfolio.get("total_value", 0)
+        if total_value > 0:
+            deployed = sum(
+                h["value"] for s, h in holdings.items()
+                if not self._is_stablecoin(s)
+            )
+            
+            # Estimate new deployed after this trade
+            estimated_position_size = min(config.BASE_POSITION_SIZE, total_usdc * 0.95)
+            new_deployed = deployed + estimated_position_size
+            new_deployed_pct = new_deployed / total_value
+            
+            if new_deployed_pct > config.MAX_PORTFOLIO_RISK:
+                return {
+                    "valid": False,
+                    "reason": f"max_risk ({new_deployed_pct*100:.0f}% > {config.MAX_PORTFOLIO_RISK*100:.0f}%)"
+                }
+        
+        return {"valid": True, "reason": "All checks passed"}
     
     def _classify_opportunity(self, token: DiscoveredToken) -> tuple:
         """Classify opportunity type"""
