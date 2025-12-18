@@ -1,7 +1,7 @@
 """
-Trading Strategy - WITH TOKEN VALIDATION FALLBACK
-✅ Tries next-ranked token if validation fails
-✅ Prevents wasted cycles
+Trading Strategy - FIXED: Keep validating until trade succeeds
+✅ Tries all available tokens, not just LLM-ranked ones
+✅ Won't waste cycles on failed validation
 """
 from typing import List, Dict, Optional, Tuple
 from config import config
@@ -17,13 +17,14 @@ logger = get_logger("Strategy")
 
 class TradingStrategy:
     """
-    🔥 ELITE HYBRID STRATEGY WITH FALLBACK
+    🔥 ELITE HYBRID STRATEGY - VALIDATED UNTIL SUCCESS
     """
     
     def __init__(self, llm_brain=None):
         self.llm_brain = llm_brain
         logger.info("📊 Hybrid Trading Strategy initialized")
-        logger.info("   ✅ Token validation fallback enabled")
+        logger.info("   ✅ Validates all tokens until one succeeds")
+        logger.info("   ✅ No wasted cycles")
     
     async def generate_decision(
         self,
@@ -32,7 +33,7 @@ class TradingStrategy:
         metrics: TradingMetrics,
         market_snapshot: MarketSnapshot
     ) -> TradeDecision:
-        """Generate trade decision (hybrid approach with fallback)"""
+        """Generate trade decision (hybrid approach with exhaustive validation)"""
         positions = portfolio.get("positions", [])
         
         # STEP 1: Check exit signals first (PRIORITY)
@@ -48,25 +49,29 @@ class TradingStrategy:
                 reason=f"📊 Max positions ({config.MAX_POSITIONS}) reached. Need to exit first."
             )
         
-        # STEP 3: Get LLM to rank opportunities
+        # STEP 3: Get LLM to rank opportunities (if enabled)
         if self.llm_brain and self.llm_brain.enabled and opportunities:
             logger.info("🧠 Getting LLM token rankings...")
             ranked_opportunities = await self.llm_brain.rank_tokens(
                 opportunities,
                 market_snapshot
             )
+            # LLM now returns ALL tokens (LLM-ranked first, then algo scores)
             opportunities_with_scores = [
                 (token, llm_score, reason) 
                 for token, llm_score, reason in ranked_opportunities
             ]
+            
+            llm_count = sum(1 for _, _, reason in opportunities_with_scores if "algo" not in reason.lower())
+            logger.info(f"📊 LLM ranked {llm_count} tokens, {len(opportunities_with_scores) - llm_count} using algo scores")
         else:
             opportunities_with_scores = [
                 (token, token.opportunity_score, "Algorithmic")
                 for token in opportunities
             ]
         
-        # STEP 4: Check for entry WITH FALLBACK MECHANISM
-        entry_candidate = await self._check_entry_signals_with_fallback(
+        # STEP 4: ✅ NEW: Validate ALL opportunities until one succeeds
+        entry_candidate = await self._check_entry_signals_exhaustive(
             portfolio, 
             opportunities_with_scores,
             metrics,
@@ -75,7 +80,7 @@ class TradingStrategy:
         
         return entry_candidate
     
-    async def _check_entry_signals_with_fallback(
+    async def _check_entry_signals_exhaustive(
         self,
         portfolio: Dict,
         opportunities_with_scores: List[Tuple],
@@ -83,7 +88,7 @@ class TradingStrategy:
         market_snapshot: MarketSnapshot
     ) -> TradeDecision:
         """
-        ✅ NEW: Check entry signals with fallback to next token if validation fails
+        ✅ FIXED: Validate ALL tokens until one succeeds (no wasted cycles)
         """
         
         total_value = portfolio.get("total_value", 0)
@@ -121,31 +126,35 @@ class TradingStrategy:
                 reason="🔭 No opportunities meeting criteria"
             )
         
-        # ✅ NEW: Try opportunities in order until one passes validation
+        # ✅ FIXED: Validate ALL opportunities until one succeeds
         existing_symbols = {pos.symbol for pos in positions}
         
         validated_count = 0
         failed_tokens = []
+        max_to_validate = min(len(opportunities_with_scores), 20)  # Don't validate more than 20
         
-        for token, score, llm_reason in opportunities_with_scores:
+        logger.info(f"🔍 Starting exhaustive validation (up to {max_to_validate} tokens)...")
+        
+        for token, score, llm_reason in opportunities_with_scores[:max_to_validate]:
             # Skip if already holding
             symbol_key = f"{token.symbol}_{token.chain}"
             if symbol_key in existing_symbols:
-                logger.debug(f"⏭️ Skipping {token.symbol} - already holding")
+                logger.debug(f"⏭️ #{validated_count + 1} Skipping {token.symbol} - already holding")
                 continue
             
             # Skip if base symbol is held (avoid duplicates across chains)
             if token.symbol in existing_symbols:
-                logger.debug(f"⏭️ Skipping {token.symbol} - base symbol held")
+                logger.debug(f"⏭️ #{validated_count + 1} Skipping {token.symbol} - base symbol held")
                 continue
             
             # Score threshold
-            if score < 4.0:
-                logger.debug(f"⏭️ Skipping {token.symbol} - score {score:.1f} < 4.0")
+            if score < 3.0:  # Lower threshold to validate more tokens
+                logger.debug(f"⏭️ #{validated_count + 1} Skipping {token.symbol} - score {score:.1f} < 3.0")
                 continue
             
-            # ✅ CRITICAL: Pre-validate token BEFORE creating decision
-            logger.info(f"🔍 Pre-validating token #{validated_count + 1}: {token.symbol}")
+            # ✅ Start validation for this token
+            validated_count += 1
+            logger.info(f"🔍 Validating token #{validated_count}: {token.symbol} (Score: {score:.1f})")
             
             # Validate address format
             is_valid, reason = token_validator.validate_token(
@@ -156,21 +165,19 @@ class TradingStrategy:
                 liquidity=token.liquidity_usd
             )
             
-            validated_count += 1
-            
             if not is_valid:
-                logger.warning(f"❌ Address validation failed: {token.symbol} - {reason}")
+                logger.warning(f"   ❌ Address validation failed: {reason}")
                 failed_tokens.append(f"{token.symbol} ({reason})")
                 token_validator.record_trade_failure(token.address, token.chain)
-                continue
+                continue  # Try next token
             
             # Check if blacklisted
             if token_validator.is_blacklisted(token.address):
-                logger.warning(f"🚫 Skipping blacklisted token: {token.symbol}")
+                logger.warning(f"   🚫 Blacklisted (3+ failures)")
                 failed_tokens.append(f"{token.symbol} (blacklisted)")
-                continue
+                continue  # Try next token
             
-            # ✅ NEW: Pre-validate trading requirements (liquidity, volume, etc)
+            # Pre-validate trading requirements
             trade_validation = self._pre_validate_token_requirements(
                 token, 
                 portfolio, 
@@ -178,11 +185,12 @@ class TradingStrategy:
             )
             
             if not trade_validation["valid"]:
-                logger.warning(f"❌ Trading validation failed: {token.symbol} - {trade_validation['reason']}")
+                logger.warning(f"   ❌ Trading validation failed: {trade_validation['reason']}")
                 failed_tokens.append(f"{token.symbol} ({trade_validation['reason']})")
-                continue
+                continue  # Try next token
             
-            logger.info(f"✅ All validations passed: {token.symbol}")
+            # ✅ ALL VALIDATIONS PASSED
+            logger.info(f"   ✅ All validations passed!")
             
             # Determine signal type and conviction
             signal_type, conviction = self._classify_opportunity(token)
@@ -195,13 +203,14 @@ class TradingStrategy:
             )
             
             if position_size < config.MIN_TRADE_SIZE:
-                logger.debug(f"⏭️ Skipping {token.symbol} - position too small")
-                continue
+                logger.warning(f"   ⚠️ Position too small: ${position_size:.2f}")
+                failed_tokens.append(f"{token.symbol} (position_too_small)")
+                continue  # Try next token
             
             # Don't exceed available USDC
             position_size = min(position_size, usdc_value * 0.95)
             
-            # ✅ SUCCESS: Create decision for this token
+            # ✅ Create decision for this token
             decision = TradeDecision(
                 action=TradingAction.BUY,
                 from_token="USDC",
@@ -222,9 +231,9 @@ class TradingStrategy:
                 }
             )
             
-            # ✅ STEP 5: LLM confirmation (if enabled)
+            # ✅ LLM confirmation (if enabled)
             if self.llm_brain and self.llm_brain.enabled:
-                logger.info("🧠 Getting LLM trade confirmation...")
+                logger.info("   🧠 Getting LLM trade confirmation...")
                 
                 portfolio_stats = {
                     "positions": len(positions),
@@ -242,30 +251,36 @@ class TradingStrategy:
                 )
                 
                 if not approved:
-                    logger.warning(f"❌ LLM rejected: {token.symbol} - {reasoning}")
-                    failed_tokens.append(f"{token.symbol} (LLM rejected)")
-                    # Continue to next token (FALLBACK)
-                    continue
+                    logger.warning(f"   ❌ LLM rejected: {reasoning}")
+                    failed_tokens.append(f"{token.symbol} (LLM_rejected)")
+                    continue  # Try next token (CRITICAL: Don't give up!)
                 
                 decision.conviction = new_conviction
                 decision.reason = f"{decision.reason} | LLM: {reasoning}"
             
-            # ✅ FOUND VALID TOKEN - RETURN IT
+            # ✅ SUCCESS! Found valid token
             if failed_tokens:
-                logger.info(f"ℹ️ Tried {validated_count} tokens, skipped: {', '.join(failed_tokens)}")
+                logger.info(f"✅ Found valid token after trying {validated_count} (Skipped: {len(failed_tokens)})")
             
             return decision
         
-        # ✅ NO VALID TOKEN FOUND
+        # ✅ Exhausted all tokens - none passed validation
+        logger.warning(f"❌ Validated {validated_count} tokens, all failed")
+        
         if failed_tokens:
+            # Show first 5 failures
+            failures_summary = ", ".join(failed_tokens[:5])
+            if len(failed_tokens) > 5:
+                failures_summary += f" and {len(failed_tokens) - 5} more"
+            
             return TradeDecision(
                 action=TradingAction.HOLD,
-                reason=f"🔍 Validated {validated_count} tokens, all failed: {', '.join(failed_tokens[:3])}"
+                reason=f"🔍 Validated {validated_count} tokens, all failed: {failures_summary}"
             )
         
         return TradeDecision(
             action=TradingAction.HOLD,
-            reason="🔍 No suitable opportunities found"
+            reason=f"🔍 No suitable opportunities found (checked {validated_count} tokens)"
         )
     
     def _check_exit_signals(self, position: Position, portfolio: Dict) -> Optional[TradeDecision]:
@@ -330,8 +345,7 @@ class TradingStrategy:
         positions: List[Position]
     ) -> Dict:
         """
-        ✅ NEW: Pre-validate token trading requirements
-        This catches issues BEFORE creating the trade decision
+        Pre-validate token trading requirements
         """
         # Check liquidity
         if token.liquidity_usd < config.MIN_LIQUIDITY_USD:
@@ -347,11 +361,11 @@ class TradingStrategy:
                 "reason": f"low_volume (${token.volume_24h:,.0f} < ${config.MIN_VOLUME_24H_USD:,.0f})"
             }
         
-        # Check score threshold
-        if token.opportunity_score < config.OPPORTUNITY_SCORE_THRESHOLD:
+        # Score threshold - lowered to 3.0 so we check more tokens
+        if token.opportunity_score < 3.0:
             return {
                 "valid": False,
-                "reason": f"low_score ({token.opportunity_score:.1f} < {config.OPPORTUNITY_SCORE_THRESHOLD})"
+                "reason": f"low_score ({token.opportunity_score:.1f} < 3.0)"
             }
         
         # Check if would exceed max positions

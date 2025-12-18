@@ -1,5 +1,7 @@
 """
-LLM Trading Brain - Enhanced with retry logic and better error handling
+LLM Trading Brain - FIXED: Better ranking with fallback
+✅ Returns all tokens even if LLM fails to rank some
+✅ Uses algorithmic scores as fallback
 """
 import asyncio
 import json
@@ -20,7 +22,7 @@ logger = get_logger("LLMBrain")
 class LLMBrain:
     """
     Elite LLM Brain for trading decisions
-    Enhanced with retry logic and circuit breaking
+    Enhanced with better fallback logic
     """
     
     def __init__(self):
@@ -212,14 +214,19 @@ class LLMBrain:
     ) -> List[Tuple[DiscoveredToken, float, str]]:
         """
         🧠 BRAIN FUNCTION: Rank discovered tokens by trading potential
+        ✅ FIXED: Returns ALL tokens with fallback to algo scores
         """
         if not self.enabled or not tokens or self._circuit_open:
+            logger.info("🤖 Using algorithmic scores (LLM disabled/unavailable)")
             return [(t, t.opportunity_score, "Algorithmic scoring") for t in tokens]
         
         logger.info(f"🧠 LLM ranking {len(tokens)} tokens...")
         
         # Limit to top 15 to save tokens
         top_tokens = tokens[:15]
+        
+        # Create symbol lookup for matching
+        token_lookup = {t.symbol.upper(): t for t in top_tokens}
         
         token_summaries = []
         for i, token in enumerate(top_tokens, 1):
@@ -242,23 +249,28 @@ MARKET CONTEXT:
 TOKENS:
 {chr(10).join(token_summaries)}
 
-For EACH token, provide a score (0-10) and brief reason.
+For EACH token above, provide a score (0-10) and brief reason.
 
-CRITICAL: Respond ONLY with valid JSON. No other text. Format:
+CRITICAL REQUIREMENTS:
+1. Respond ONLY with valid JSON. No other text.
+2. Include ALL {len(top_tokens)} tokens in your response
+3. Use exact symbol names as shown above
+
+Format:
 {{
   "rankings": [
-    {{"symbol": "ARB", "score": 8.5, "reason": "Strong momentum"}},
-    {{"symbol": "OP", "score": 7.0, "reason": "Moderate volume"}}
+    {{"symbol": "EXACT_SYMBOL_FROM_ABOVE", "score": 8.5, "reason": "Brief reason"}},
+    ...
   ]
 }}"""
 
-        system = "You are a crypto trader. Respond ONLY with valid JSON. No preamble, no markdown, just JSON."
+        system = "You are a crypto trader. Respond ONLY with valid JSON containing ALL tokens. No preamble, no markdown, just JSON."
         
         response = await self._call_llm(prompt, system)
         
         if not response:
             logger.warning("⚠️ LLM ranking failed, using algo scores")
-            return [(t, t.opportunity_score, "LLM failed") for t in top_tokens]
+            return [(t, t.opportunity_score, "LLM failed - algo fallback") for t in top_tokens]
         
         try:
             # Extract JSON
@@ -267,7 +279,7 @@ CRITICAL: Respond ONLY with valid JSON. No other text. Format:
             if not json_text:
                 logger.warning("⚠️ No JSON found in LLM response")
                 logger.debug(f"Response: {response[:300]}")
-                return [(t, t.opportunity_score, "No JSON") for t in top_tokens]
+                return [(t, t.opportunity_score, "No JSON - algo fallback") for t in top_tokens]
             
             # Parse JSON
             data = json.loads(json_text)
@@ -275,39 +287,61 @@ CRITICAL: Respond ONLY with valid JSON. No other text. Format:
             
             if not rankings:
                 logger.warning("⚠️ Empty rankings from LLM")
-                return [(t, t.opportunity_score, "Empty rankings") for t in top_tokens]
+                return [(t, t.opportunity_score, "Empty rankings - algo fallback") for t in top_tokens]
             
-            # Match back to tokens
-            results = []
+            # ✅ NEW: Create results dict for all tokens with LLM scores
+            llm_scored = {}
+            matched_count = 0
+            
             for ranking in rankings:
-                symbol = ranking.get("symbol", "").upper()
+                symbol = ranking.get("symbol", "").upper().strip()
                 llm_score = float(ranking.get("score", 0))
                 reason = ranking.get("reason", "No reason")
                 
-                # Find matching token
-                for token in top_tokens:
-                    if token.symbol.upper() == symbol:
-                        results.append((token, llm_score, reason))
-                        break
+                # Try exact match first
+                if symbol in token_lookup:
+                    token = token_lookup[symbol]
+                    llm_scored[symbol] = (token, llm_score, reason)
+                    matched_count += 1
+                else:
+                    # Try partial match (e.g., "BEMU" matches "BEMU")
+                    for token_sym, token in token_lookup.items():
+                        if symbol in token_sym or token_sym in symbol:
+                            llm_scored[token_sym] = (token, llm_score, reason)
+                            matched_count += 1
+                            break
             
-            if not results:
-                logger.warning("⚠️ No tokens matched from LLM rankings")
-                return [(t, t.opportunity_score, "No matches") for t in top_tokens]
+            logger.info(f"🧠 LLM matched {matched_count}/{len(top_tokens)} tokens")
             
-            logger.info(f"🧠 LLM ranked {len(results)} tokens successfully")
+            # ✅ NEW: Build final results - LLM scored tokens first, then unranked with algo scores
+            results = []
             
-            # Sort by LLM score
+            # Add LLM-scored tokens (sorted by LLM score)
+            llm_results = list(llm_scored.values())
+            llm_results.sort(key=lambda x: x[1], reverse=True)
+            results.extend(llm_results)
+            
+            # Add unranked tokens with their algo scores
+            unranked = [t for t in top_tokens if t.symbol.upper() not in llm_scored]
+            if unranked:
+                logger.info(f"📊 Adding {len(unranked)} unranked tokens with algo scores")
+                for token in unranked:
+                    results.append((token, token.opportunity_score, "Algo score (LLM didn't rank)"))
+            
+            # Final sort by score (mix of LLM and algo)
             results.sort(key=lambda x: x[1], reverse=True)
+            
+            logger.info(f"✅ Returning {len(results)} total tokens ({matched_count} LLM-ranked, {len(unranked)} algo-fallback)")
             
             return results
             
         except json.JSONDecodeError as e:
             logger.error(f"❌ JSON parse error: {e}")
             logger.debug(f"JSON text: {json_text[:300] if 'json_text' in locals() else 'N/A'}")
-            return [(t, t.opportunity_score, "Parse error") for t in top_tokens]
+            return [(t, t.opportunity_score, "Parse error - algo fallback") for t in top_tokens]
         except Exception as e:
             logger.error(f"❌ LLM ranking error: {e}")
-            return [(t, t.opportunity_score, "Error") for t in top_tokens]
+            return [(t, t.opportunity_score, "Error - algo fallback") for t in top_tokens]
     
     async def confirm_trade(
         self,
